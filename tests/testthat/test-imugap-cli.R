@@ -1,4 +1,3 @@
-# --- Source helpers and main() from the CLI script ---------------------------
 
 # Prefer local dev copy (assumes tests run from tests/testthat/).
 # Falls back to installed package version if relative path doesn't resolve.
@@ -177,7 +176,7 @@ test_that("install_cli creates symlink to correct script", {
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  result <- imugapMap::install_cli(path = dir)
+  result <- imuGAP::install_cli(path = dir)
   link <- file.path(dir, "imugap")
   expect_true(result)
   expect_true(file.exists(link))
@@ -188,7 +187,7 @@ test_that("install_cli creates symlink to correct script", {
 
 test_that("install_cli errors for non-existent directory", {
   skip_on_os("windows")
-  expect_error(imugapMap::install_cli(path = "/nonexistent/path/xyz"), "does not exist")
+  expect_error(imuGAP::install_cli(path = "/nonexistent/path/xyz"), "does not exist")
 })
 
 test_that("install_cli replaces existing file at target", {
@@ -198,6 +197,6 @@ test_that("install_cli replaces existing file at target", {
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
   writeLines("old", file.path(dir, "imugap"))
-  imugapMap::install_cli(path = dir)
+  imuGAP::install_cli(path = dir)
   expect_true(nzchar(Sys.readlink(file.path(dir, "imugap"))))
 })

@@ -95,7 +95,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     return(3)
   }
 
-  message("[→] Loading inputs...")
+  message("[\u2192] Loading inputs...")
   inputs <- tryCatch(
     list(
       obs     = find_input_file(input_dir, "observations"),
@@ -108,9 +108,9 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     message("ERROR: ", inputs$message)
     return(3)
   }
-  message("[✓] Inputs loaded.")
+  message("[\u2713] Inputs loaded.")
 
-  message("[→] Validating schema...")
+  message("[\u2192] Validating schema...")
   canonical <- tryCatch({
     locs <- imuGAP::canonicalize_locations(inputs$locs)
     obs  <- imuGAP::canonicalize_observations(inputs$obs)
@@ -121,10 +121,10 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     message("ERROR: ", canonical$message)
     return(1)
   }
-  message("[✓] Schema validated.")
+  message("[\u2713] Schema validated.")
 
   if (help_flag) {
-    message("[✓] Validation passed.")
+    message("[\u2713] Validation passed.")
     return(0)
   }
 
@@ -138,7 +138,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     }
   }
 
-  message("[→] Launching imuGAP...")
+  message("[\u2192] Launching imuGAP...")
   fit <- tryCatch(
     imuGAP::imuGAP(
       observations = canonical$obs, populations = canonical$pops,
@@ -152,7 +152,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     message("ERROR: ", fit$message)
     return(2)
   }
-  message("[✓] Model complete.")
+  message("[\u2713] Model complete.")
 
   fit_path <- file.path(output_dir, "fit.rds")
   save_err <- tryCatch({ saveRDS(fit, fit_path); NULL }, error = identity)
@@ -160,7 +160,7 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     message("ERROR: Failed to save output to ", fit_path, ": ", save_err$message)
     return(3)
   }
-  message("[✓] Wrote ", fit_path)
+  message("[\u2713] Wrote ", fit_path)
 
   return(0)
 }
