@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(imugapMap)
+library(imugap.maps)
 
-test_check("imugapMap")
+test_check("imugap.maps")

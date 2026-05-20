@@ -3,7 +3,7 @@
 # Falls back to installed package version if relative path doesn't resolve.
 script_path <- file.path("../../inst/scripts/imugap.R")
 if (!file.exists(script_path)) {
-  script_path <- system.file("scripts", "imugap.R", package = "imugapMap")
+  script_path <- system.file("scripts", "imugap.R", package = "imugap.maps")
 }
 if (!nzchar(script_path) || !file.exists(script_path)) {
   stop("Cannot find imugap.R: tried relative path and installed package location")
@@ -176,18 +176,18 @@ test_that("install_cli creates symlink to correct script", {
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  result <- imuGAP::install_cli(path = dir)
+  result <- imugap.maps::install_cli(path = dir)
   link <- file.path(dir, "imugap")
   expect_true(result)
   expect_true(file.exists(link))
   target <- Sys.readlink(link)
-  expected <- system.file("scripts", "imugap.R", package = "imugapMap")
+  expected <- system.file("scripts", "imugap.R", package = "imugap.maps")
   expect_equal(normalizePath(target), normalizePath(expected))
 })
 
 test_that("install_cli errors for non-existent directory", {
   skip_on_os("windows")
-  expect_error(imuGAP::install_cli(path = "/nonexistent/path/xyz"), "does not exist")
+  expect_error(imugap.maps::install_cli(path = "/nonexistent/path/xyz"), "does not exist")
 })
 
 test_that("install_cli replaces existing file at target", {
@@ -197,6 +197,6 @@ test_that("install_cli replaces existing file at target", {
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
   writeLines("old", file.path(dir, "imugap"))
-  imuGAP::install_cli(path = dir)
+  imugap.maps::install_cli(path = dir)
   expect_true(nzchar(Sys.readlink(file.path(dir, "imugap"))))
 })
