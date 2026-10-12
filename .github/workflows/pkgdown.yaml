@@ -27,22 +27,15 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
-      - uses: r-lib/actions/setup-r@v2
+      - name: Setup imuMAP CI environment
+        uses: ./.github/actions/setup-imumap
         with:
-          use-public-rspm: true
-
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::pkgdown, any::roxygen2, local::.
+          extra-packages: any::pkgdown, any::roxygen2, any::roxyglobals, any::pkgload
           needs: website
 
-      - name: Generate documentation
-        run: roxygen2::roxygenise()
-        shell: Rscript {0}
-
       - name: Build site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
-        shell: Rscript {0}
+        shell: bash
+        run: just site-full
 
       - name: Deploy to GitHub pages
         if: github.event_name != 'pull_request'

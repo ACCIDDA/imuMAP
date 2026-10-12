@@ -20,7 +20,9 @@ output_dir defaults to input_dir. Exit codes: 0=success, 1=validation, 2=model, 
 # --- Package guard -----------------------------------------------------------
 
 if (!requireNamespace("imuGAP", quietly = TRUE)) {
-  stop("Package 'imuGAP' required. Install with: remotes::install_github(\"ACCIDDA/imuGAP\")")
+  stop(
+    "Package 'imuGAP' required. Install with: remotes::install_github(\"ACCIDDA/imuGAP\")"
+  )
 }
 
 # --- Helpers -----------------------------------------------------------------
@@ -34,7 +36,8 @@ file_exists_any_ext <- function(dir, name) {
 load_by_ext <- function(path) {
   ext <- tolower(tools::file_ext(path))
   tryCatch(
-    switch(ext,
+    switch(
+      ext,
       csv = read.csv(path, stringsAsFactors = FALSE),
       rds = readRDS(path),
       stop("Unsupported extension '.", ext, "'", call. = FALSE)
@@ -51,18 +54,33 @@ find_input_file <- function(dir, name) {
     path <- file.path(dir, paste0(name, ".", ext))
     if (file.exists(path)) return(load_by_ext(path))
   }
-  stop("Expected '", name, ".csv' or '", name, ".rds' in ", dir, "/",
-       call. = FALSE)
+  stop(
+    "Expected '",
+    name,
+    ".csv' or '",
+    name,
+    ".rds' in ",
+    dir,
+    "/",
+    call. = FALSE
+  )
 }
 
 # Reports all missing files at once rather than failing on the first
 check_all_inputs <- function(dir) {
   required <- c("observations", "populations", "locations")
-  missing <- required[!vapply(required, function(n) file_exists_any_ext(dir, n), logical(1))]
+  missing <- required[
+    !vapply(required, function(n) file_exists_any_ext(dir, n), logical(1))
+  ]
   if (length(missing) > 0) {
-    stop("Missing input files in ", dir, "/: ",
-         paste(missing, collapse = ", "),
-         " (expected .csv or .rds)", call. = FALSE)
+    stop(
+      "Missing input files in ",
+      dir,
+      "/: ",
+      paste(missing, collapse = ", "),
+      " (expected .csv or .rds)",
+      call. = FALSE
+    )
   }
 }
 
@@ -89,7 +107,13 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
     return(3)
   }
 
-  err <- tryCatch({ check_all_inputs(input_dir); NULL }, error = identity)
+  err <- tryCatch(
+    {
+      check_all_inputs(input_dir)
+      NULL
+    },
+    error = identity
+  )
   if (!is.null(err)) {
     message("ERROR: ", err$message)
     return(3)
@@ -98,9 +122,9 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   message("[\u2192] Loading inputs...")
   inputs <- tryCatch(
     list(
-      obs     = find_input_file(input_dir, "observations"),
-      pops    = find_input_file(input_dir, "populations"),
-      locs    = find_input_file(input_dir, "locations")
+      obs = find_input_file(input_dir, "observations"),
+      pops = find_input_file(input_dir, "populations"),
+      locs = find_input_file(input_dir, "locations")
     ),
     error = identity
   )
@@ -111,12 +135,15 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   message("[\u2713] Inputs loaded.")
 
   message("[\u2192] Validating schema...")
-  canonical <- tryCatch({
-    locs <- imuGAP::canonicalize_locations(inputs$locs)
-    obs  <- imuGAP::canonicalize_observations(inputs$obs)
-    pops <- imuGAP::canonicalize_populations(inputs$pops, obs, locs)
-    list(locs = locs, obs = obs, pops = pops)
-  }, error = identity)
+  canonical <- tryCatch(
+    {
+      locs <- imuGAP::canonicalize_locations(inputs$locs)
+      obs <- imuGAP::canonicalize_observations(inputs$obs)
+      pops <- imuGAP::canonicalize_populations(inputs$pops, obs, locs)
+      list(locs = locs, obs = obs, pops = pops)
+    },
+    error = identity
+  )
   if (inherits(canonical, "error")) {
     message("ERROR: ", canonical$message)
     return(1)
@@ -141,7 +168,8 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   message("[\u2192] Launching imuGAP...")
   fit <- tryCatch(
     imuGAP::imuGAP(
-      observations = canonical$obs, populations = canonical$pops,
+      observations = canonical$obs,
+      populations = canonical$pops,
       locations = canonical$locs,
       imugap_opts = imuGAP::imugap_options(df = 5L, dose_schedule = c(1L, 4L)),
       stan_opts = stan_opts
@@ -155,9 +183,20 @@ main <- function(args = commandArgs(trailingOnly = TRUE)) {
   message("[\u2713] Model complete.")
 
   fit_path <- file.path(output_dir, "fit.rds")
-  save_err <- tryCatch({ saveRDS(fit, fit_path); NULL }, error = identity)
+  save_err <- tryCatch(
+    {
+      saveRDS(fit, fit_path)
+      NULL
+    },
+    error = identity
+  )
   if (!is.null(save_err)) {
-    message("ERROR: Failed to save output to ", fit_path, ": ", save_err$message)
+    message(
+      "ERROR: Failed to save output to ",
+      fit_path,
+      ": ",
+      save_err$message
+    )
     return(3)
   }
   message("[\u2713] Wrote ", fit_path)

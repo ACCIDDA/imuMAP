@@ -1,12 +1,13 @@
-
 # Prefer local dev copy (assumes tests run from tests/testthat/).
 # Falls back to installed package version if relative path doesn't resolve.
 script_path <- file.path("../../inst/scripts/imugap.R")
 if (!file.exists(script_path)) {
-  script_path <- system.file("scripts", "imugap.R", package = "imugap.maps")
+  script_path <- system.file("scripts", "imugap.R", package = "imuMAP")
 }
 if (!nzchar(script_path) || !file.exists(script_path)) {
-  stop("Cannot find imugap.R: tried relative path and installed package location")
+  stop(
+    "Cannot find imugap.R: tried relative path and installed package location"
+  )
 }
 
 script_lines <- readLines(script_path)
@@ -20,7 +21,9 @@ stopifnot(
 
 # Extract everything from USAGE through main(), skipping the package guard block
 guard_start <- grep("^if \\(!requireNamespace", script_lines)[1]
-guard_end <- guard_start + 2L  # 3-line block: if (...) { / stop(...) / }
+guard_end <- which(
+  seq_along(script_lines) >= guard_start & grepl("^}", script_lines)
+)[1]
 keep <- setdiff(fn_start:main_end, guard_start:guard_end)
 source_text <- script_lines[keep]
 
@@ -39,8 +42,11 @@ test_that("find_input_file reads CSV from directory", {
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  write.csv(data.frame(positive = 1:3, sample_n = 10:12),
-            file.path(dir, "observations.csv"), row.names = FALSE)
+  write.csv(
+    data.frame(positive = 1:3, sample_n = 10:12),
+    file.path(dir, "observations.csv"),
+    row.names = FALSE
+  )
   result <- find_input_file(dir, "observations")
   expect_equal(result$positive, 1:3)
   expect_equal(result$sample_n, 10:12)
@@ -86,7 +92,11 @@ test_that("check_all_inputs reports only the actually missing files", {
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  write.csv(data.frame(a = 1), file.path(dir, "observations.csv"), row.names = FALSE)
+  write.csv(
+    data.frame(a = 1),
+    file.path(dir, "observations.csv"),
+    row.names = FALSE
+  )
   err <- tryCatch(check_all_inputs(dir), error = identity)
   expect_true(inherits(err, "error"))
   expect_false(grepl("observations", err$message))
@@ -99,9 +109,21 @@ test_that("check_all_inputs passes when all files present", {
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  write.csv(data.frame(a = 1), file.path(dir, "observations.csv"), row.names = FALSE)
-  write.csv(data.frame(a = 1), file.path(dir, "populations.csv"), row.names = FALSE)
-  write.csv(data.frame(a = 1), file.path(dir, "locations.csv"), row.names = FALSE)
+  write.csv(
+    data.frame(a = 1),
+    file.path(dir, "observations.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    data.frame(a = 1),
+    file.path(dir, "populations.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    data.frame(a = 1),
+    file.path(dir, "locations.csv"),
+    row.names = FALSE
+  )
   expect_no_error(check_all_inputs(dir))
 })
 
@@ -176,18 +198,21 @@ test_that("install_cli creates symlink to correct script", {
   dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
-  result <- imugap.maps::install_cli(path = dir)
+  result <- imuMAP::install_cli(path = dir)
   link <- file.path(dir, "imugap")
   expect_true(result)
   expect_true(file.exists(link))
   target <- Sys.readlink(link)
-  expected <- system.file("scripts", "imugap.R", package = "imugap.maps")
+  expected <- system.file("scripts", "imugap.R", package = "imuMAP")
   expect_equal(normalizePath(target), normalizePath(expected))
 })
 
 test_that("install_cli errors for non-existent directory", {
   skip_on_os("windows")
-  expect_error(imugap.maps::install_cli(path = "/nonexistent/path/xyz"), "does not exist")
+  expect_error(
+    imuMAP::install_cli(path = "/nonexistent/path/xyz"),
+    "does not exist"
+  )
 })
 
 test_that("install_cli replaces existing file at target", {
@@ -197,6 +222,6 @@ test_that("install_cli replaces existing file at target", {
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
 
   writeLines("old", file.path(dir, "imugap"))
-  imugap.maps::install_cli(path = dir)
+  imuMAP::install_cli(path = dir)
   expect_true(nzchar(Sys.readlink(file.path(dir, "imugap"))))
 })

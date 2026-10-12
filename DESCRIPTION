@@ -1,27 +1,50 @@
-Package: imugap.maps
-Title: CLI and Geospatial Tools for imuGAP
+Package: imuMAP
+Title: Immunity: Mapping, Aggregation, and Projection
 Version: 0.0.0.9000
-Authors@R:
+Authors@R: 
     c(person("Carl", "Pearson", email = "carl.ab.pearson@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-0701-7860")),
       person("Claire Perrin", "Smith", role = "aut",
            comment = c(ORCID = "0000-0003-1069-9460")),
       person("Weston", "Voglesonger", email = "westonvogle@gmail.com", role = "ctb"))
-Description: What the package does (one paragraph).
+Description: Tools for geospatial mapping, spatial aggregation, and
+    re-projecting vaccination coverage estimates onto new spatial
+    organizations and scales (e.g., translating coverage from fine-scale
+    units to administrative regions and alternative geographic boundaries).
+    Complements 'imuGAP' outputs with spatial alignment, re-scaling, and
+    cartographic visualizations.
 License: MIT + file LICENSE
 Encoding: UTF-8
-Roxygen: list(markdown = TRUE)
+Language: en-US
+Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
+    "roxyglobals::global_roclet"))
 RoxygenNote: 7.3.3
-Depends:
+Depends: 
     R (>= 4.1.0)
-Imports:
+Imports: 
+    data.table,
+    Matrix,
+    sf
+Suggests: 
+    covr,
+    devtools,
     imuGAP,
-    data.table
-Suggests:
+    knitr,
+    lintr,
+    pkgdown,
+    pkgload,
+    rmarkdown,
+    roxygen2,
+    roxyglobals,
+    spelling,
     testthat (>= 3.0.0),
-    lintr
+    withr
+VignetteBuilder: 
+    knitr
 Config/testthat/edition: 3
-Remotes:
+Remotes: 
     ACCIDDA/imuGAP
-URL: https://github.com/ACCIDDA/imugap-map
-BugReports: https://github.com/ACCIDDA/imugap-map/issues
+URL: https://accidda.github.io/imuMAP/, https://github.com/ACCIDDA/imuMAP
+BugReports: https://github.com/ACCIDDA/imuMAP/issues
+Config/roxyglobals/filename: globals.R
+Config/roxyglobals/unique: FALSE

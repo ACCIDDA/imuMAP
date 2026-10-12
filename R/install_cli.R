@@ -14,7 +14,7 @@ install_cli <- function(path = "~/.local/bin") {
     stop("install_cli() is not supported on Windows.", call. = FALSE)
   }
 
-  script <- system.file("scripts", "imugap.R", package = "imugap.maps")
+  script <- system.file("scripts", "imugap.R", package = "imuMAP")
   if (!nzchar(script)) {
     stop("Cannot find bundled CLI script. Is imuGAP installed?", call. = FALSE)
   }
@@ -41,5 +41,5 @@ install_cli <- function(path = "~/.local/bin") {
   }
   message("Installed: ", link, " -> ", script)
   message("Ensure ", path, " is on your PATH.")
-  return(invisible(TRUE))
+  invisible(TRUE)
 }

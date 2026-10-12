@@ -1,14 +1,13 @@
-# imugap.maps
+# imuMAP: Immunity: Mapping, Aggregation, and Projection
 
-> ⚠️ **Under construction.** The scope of this package is still being figured
-> out. The name in the DESCRIPTION is `imugap.maps`; the repo is
-> `imugap-map`. The README will get more specific as the surface area
-> stabilizes.
+> ⚠️ **Under construction.** Tools for geospatial mapping, spatial aggregation,
+> and re-projecting vaccination coverage estimates onto new spatial
+> organizations and scales.
 
-A sibling R package to [`imuGAP`](https://github.com/ACCIDDA/imuGAP) that
-holds tools which depend on imuGAP but don't belong inside the modeling
-package itself. The DESCRIPTION calls it "CLI and Geospatial Tools for
-imuGAP" — the CLI half is real today, the geospatial half is aspirational.
+A sibling R package to [`imuGAP`](https://github.com/ACCIDDA/imuGAP) providing
+geospatial mapping, spatial aggregation across hierarchies, re-projecting
+coverage estimates onto alternative administrative/geographic scales, and
+cartographic visualizations.
 
 ## What's here today
 
@@ -49,7 +48,7 @@ and the broader release prep on imuGAP land.
 
 ```r
 # install.packages("remotes")
-remotes::install_github("ACCIDDA/imugap-map")
+remotes::install_github("ACCIDDA/imuMAP")
 ```
 
 Requires imuGAP, which is currently a GitHub-only dependency (declared
@@ -58,11 +57,10 @@ go away.
 
 ## Repository status
 
-- CI: in progress on [#7](https://github.com/ACCIDDA/imugap-map/pull/7).
-  Once that merges, R-CMD-check + pkgdown run on every PR; `man/` is
-  regenerated from roxygen comments in CI and is not tracked in git.
+- CI: Automated testing via GitHub Actions. R-CMD-check + pkgdown run on every PR;
+  `man/` is regenerated from roxygen comments in CI and is not tracked in git.
 - Issues and discussion are tracked in
-  [the issue tracker](https://github.com/ACCIDDA/imugap-map/issues).
+  [the issue tracker](https://github.com/ACCIDDA/imuMAP/issues).
 
 ## License
 

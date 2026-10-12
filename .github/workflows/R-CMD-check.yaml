@@ -6,7 +6,53 @@ on:
   pull_request:
 
 jobs:
+  prep:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup imuMAP CI environment
+        uses: ./.github/actions/setup-imumap
+        with:
+          extra-packages: any::roxygen2, any::roxyglobals, any::pkgload
+          needs: check
+
+      - name: Guard source tarball size
+        shell: bash
+        run: |
+          R CMD build .
+          TARBALL=$(ls -1 imugap.maps_*.tar.gz 2>/dev/null || ls -1 *.tar.gz 2>/dev/null | head -n 1)
+          SIZE=$(wc -c < "${TARBALL}")
+          echo "Built ${TARBALL} (${SIZE} bytes)"
+          if [ "${SIZE}" -gt 10485760 ]; then
+            echo "::error::Source tarball exceeds 10MB (${SIZE} bytes)"
+            exit 1
+          elif [ "${SIZE}" -gt 5242880 ]; then
+            echo "::warning::Source tarball exceeds 5MB (${SIZE} bytes), CRAN requires < 5MB"
+          fi
+          rm -f "${TARBALL}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prep-build-artifacts
+          if-no-files-found: ignore
+          retention-days: 1
+          path: |
+            data/*.rda
+            man
+            NAMESPACE
+            R/globals.R
+            vignettes/figures/*.svg
+
   R-CMD-check:
+    needs: prep
     runs-on: ${{ matrix.config.os }}
 
     name: ${{ matrix.config.os }} (${{ matrix.config.r }})
@@ -35,30 +81,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install macOS system dependencies
-        if: runner.os == 'macOS'
-        run: |
-          brew install gettext
-          GETTEXT_PREFIX="$(brew --prefix gettext)"
-          mkdir -p ~/.R
-          echo "CPPFLAGS += -I${GETTEXT_PREFIX}/include" >> ~/.R/Makevars
-          echo "LDFLAGS += -L${GETTEXT_PREFIX}/lib" >> ~/.R/Makevars
+      # Restore the man/ + NAMESPACE + R/globals.R produced by the prep job
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: prep-build-artifacts
+          path: .
 
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v2
+      - name: Setup imuMAP CI environment
+        uses: ./.github/actions/setup-imumap
         with:
           r-version: ${{ matrix.config.r }}
-          use-public-rspm: true
-
-      - name: Install dependencies
-        uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck, any::roxygen2
+          extra-packages: any::rcmdcheck, any::roxygen2, any::roxyglobals, any::pkgload
           needs: check
-
-      - name: Generate documentation
-        run: roxygen2::roxygenise()
-        shell: Rscript {0}
+          bootstrap-namespace: 'false'
+          generate-docs: 'false'
 
       - name: Check package
         uses: r-lib/actions/check-r-package@v2
@@ -68,12 +105,17 @@ jobs:
 
   check-result:
     if: always()
-    needs: [R-CMD-check]
+    needs: [prep, R-CMD-check]
     runs-on: ubuntu-latest
     steps:
-      - name: Verify all required checks passed
+      - name: Verify prep and all required checks passed
         run: |
-          if [ "${{ needs.R-CMD-check.result }}" = "failure" ]; then
-            echo "One or more required checks failed"
+          if [ "${{ needs.prep.result }}" != "success" ]; then
+            echo "prep job did not succeed (result: ${{ needs.prep.result }})"
             exit 1
           fi
+          if [ "${{ needs.R-CMD-check.result }}" != "success" ]; then
+            echo "R-CMD-check did not succeed (result: ${{ needs.R-CMD-check.result }})"
+            exit 1
+          fi
+          echo "prep and R-CMD-check both succeeded."
