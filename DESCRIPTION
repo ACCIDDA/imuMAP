@@ -16,6 +16,7 @@ Description: Tools for geospatial mapping, spatial aggregation, and
 License: MIT + file LICENSE
 Encoding: UTF-8
 Language: en-US
+LazyData: true
 Roxygen: list(markdown = TRUE, roclets = c("collate", "namespace", "rd",
     "roxyglobals::global_roclet"))
 RoxygenNote: 7.3.3

@@ -11,137 +11,315 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE
+  fig.width = 7,
+  fig.height = 5,
+  eval = TRUE,
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
 ## Overview
 
-`imuMAP` (*Immunity: Mapping, Aggregation, and Projection*) provides modular, reproducible tools for re-projecting vaccination coverage estimates and demographic counts across differing spatial scales, geometry types (e.g., point observations to polygon areas), and demographic strata.
+`imuMAP` (*Immunity: Mapping, Aggregation, and Projection*) provides geospatial mapping, spatial aggregation, and re-projection tools for vaccination coverage estimates across spatial scales and administrative units.
 
-This vignette outlines the end-to-end workflow using decoupled intermediate objects for reusable distance and allocation matrices.
+A common challenge in public health surveillance is that vaccination data are frequently observed or modeled at point-level facilities (e.g., kindergarten school reports), whereas public health interventions, demographic data, and disease transmission models require continuous coverage estimates across areal units such as **Census Block Groups (CBGs)**.
+
+This vignette demonstrates the end-to-end re-projection workflow, consuming coverage data and posterior estimates from the sibling package `imuGAP` and distributing that coverage out to Census Block Groups across three contiguous North Carolina counties (*Scruggs*, *Simone*, and *Watson*).
 
 ---
 
-## 1. Input Canonicalization
+## Workflow Architecture
 
-`imuMAP` enforces schema requirements on input spatial layers and demographic tables. The canonicalization step harmonizes coordinate reference systems (CRS) to match the target sink and validates required schema columns (`id`, `geometry`, etc.):
+The `imuMAP` allocation pipeline decouples geometric distance computation, institutional eligibility rules, and decay kernel weighting from the specific coverage estimates being projected. This enables rapid, vectorized projection across multiple scenarios, years, or MCMC posterior draws.
 
-```r
-library(imuMAP)
-library(sf)
-
-# Load raw spatial geometries
-schools_raw <- sf::read_sf("schools.gpkg") # Point observations (Source)
-cbgs_raw    <- sf::read_sf("nc_cbgs.gpkg") # Target areal units (Sink)
-
-# Canonicalize spatial objects: verifies required ID schemas and transforms source CRS to match sink
-spatial_data <- canonicalize_spatial(
-  source = schools_raw,
-  sink   = cbgs_raw
-)
-
-# Canonicalize sink demographic data (e.g., population by sink id and age cohort)
-demographics <- canonicalize_demographics(
-  data = read.csv("cbg_pop_age0_5.csv")
-)
+```
++-------------------------------------------------------------+
+|                     1. Geospatial & Model Data              |
+|  * School locations (nc_schools)                            |
+|  * Target Census Block Groups (nc_cbgs)                     |
+|  * Target population demographics (nc_demographics)         |
+|  * imuGAP coverage estimates (observations_sim/predict_sim) |
++------------------------------+------------------------------+
+                               |
+                               v
++-------------------------------------------------------------+
+|                     2. Schema Canonicalization              |
+|  canonicalize_spatial()     --> CRS harmonization & checks  |
+|  canonicalize_demographics()--> Validate population schemas |
++------------------------------+------------------------------+
+                               |
+                               v
++-------------------------------------------------------------+
+|                     3. Intermediate Reusable Objects        |
+|  calc_distance_matrix()     --> Pairwise distance matrix    |
+|  eligibility_rules()        --> District/boundary filtering |
+|  kernel_options()           --> Distance decay formulation  |
+|  calc_allocation_weights()  --> Normalized W matrix         |
++------------------------------+------------------------------+
+                               |
+                               v
++-------------------------------------------------------------+
+|                     4. Re-projection & Visualization        |
+|  allocate()                 --> Vectorized spatial project  |
+|  sf::plot()                 --> Choropleth diagnostic maps  |
++-------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Reusable Intermediate Objects
+## 1. Loading Packages and Input Data
 
-### Step A: Distance Matrix with Eligibility Filtering
+We begin by loading `imuMAP`, `imuGAP`, `sf`, and `data.table`:
 
-Pairwise spatial distances are stable across estimation years and scenarios. You can pre-calculate the distance matrix once and apply generic eligibility filters (e.g., district containment, catchment zones, or distance cutoffs):
+```{r setup}
+library(imuMAP)
+library(imuGAP)
+library(sf)
+library(data.table)
+```
 
-```r
-# Define split eligibility rules based on source metadata (school_type)
-# 1. Public schools are restricted to block groups within the same school district
+### Geospatial Layers in `imuMAP`
+
+`imuMAP` bundles sample geospatial layers corresponding to the three western North Carolina counties that inspire the `imuGAP` simulation dataset:
+
+* `nc_schools`: 24 school point locations categorized by institutional type (`Public`, `Private`, `Charter`) and home county (`Scruggs`, `Simone`, `Watson`), matching `imuGAP::locations_sim`.
+* `nc_cbgs`: 113 Census Block Group polygon geometries across the three counties.
+* `nc_demographics`: Census Block Group target demographic population counts (e.g., child population aged 0–5).
+
+```{r load_data}
+data(nc_schools)
+data(nc_cbgs)
+data(nc_demographics)
+
+# Inspect source schools
+head(nc_schools, n = 3)
+
+# Inspect target Census Block Groups
+head(nc_cbgs, n = 3)
+```
+
+---
+
+## 2. Input Canonicalization
+
+`imuMAP` enforces schema requirements on input spatial geometries and demographic tables:
+
+* Both source and sink layers must contain a unique `id` column.
+* Coordinate Reference Systems (CRS) must be valid; if source and sink CRS differ, `canonicalize_spatial()` automatically re-projects `source` to match `sink`.
+* Geometries must be non-empty.
+
+To ensure metric spatial distances (meters), we transform the target Census Block Groups to the North Carolina State Plane coordinate system (EPSG:32119). `canonicalize_spatial()` automatically reprojects the school coordinates to match:
+
+```{r canonicalize}
+# Transform target units to a metric projected CRS (EPSG:32119, NAD83 / NC State Plane)
+cbgs_planar <- sf::st_transform(nc_cbgs, 32119)
+
+# Canonicalize spatial objects: verifies schemas and harmonizes CRS
+# canonicalize_spatial() automatically re-projects source to match sink CRS
+spatial_data <- canonicalize_spatial(
+  source = nc_schools,
+  sink   = cbgs_planar
+)
+
+# Canonicalize demographic population data
+demographics <- canonicalize_demographics(nc_demographics)
+```
+
+---
+
+## 3. Pairwise Distances and Institutional Eligibility
+
+Pairwise spatial distances between schools and census block groups are stable across estimation scenarios. `calc_distance_matrix()` computes these distances and applies institutional eligibility filters:
+
+1. **Public schools**: Students are typically constrained to reside within the school's local school district / home county (`match_cols = "county"`).
+2. **Private and Charter schools**: Students can attend from across county boundaries up to a maximum commuting threshold (e.g., 40 km).
+
+```{r distance_matrix}
+# Rule 1: Public schools restricted to CBGs within the same county
 rule_pub <- eligibility_rule(
-  source_filter = list(school_type = "public"),
-  match_cols = "district_id"
+  source_filter = list(school_type = "Public"),
+  match_cols    = "county"
 )
 
-# 2. Private schools have statewide access up to a 50km radius
+# Rule 2: Private and charter schools draw within a 40 km regional radius
 rule_priv <- eligibility_rule(
-  source_filter = list(school_type = "private"),
-  max_distance = 50000
+  source_filter = list(school_type = c("Private", "Charter")),
+  max_distance  = 40000
 )
 
-# Compute distance matrix applying both conditional eligibility rules
+# Compute pairwise distance matrix applying both eligibility rules
 dist_mat <- calc_distance_matrix(
-  source = spatial_data$source,
-  sink   = spatial_data$sink,
+  source      = spatial_data$source,
+  sink        = spatial_data$sink,
   eligibility = eligibility_rules(rule_pub, rule_priv)
 )
+
+dist_mat
 ```
 
-### Step B: Allocation Weights & Kernel Options
+---
 
-Construct kernel options specifying distance decay parameters. Different subsets of sources (e.g., public vs. private schools) can utilize distinct decay kernels:
+## 4. Distance Decay Kernels & Allocation Weights
 
-```r
-# Define kernel options for different school types / strata
-public_kernel <- kernel_options(
-  kernel = "gravity",
-  params = list(beta = 2.0)
+The probability that a child residing in a Census Block Group attends a specific school is modeled using distance decay kernels weighted by the destination CBG's population.
+
+Here, we define a gravity/power decay kernel ($w_{ij} \propto d_{ij}^{-\beta}$):
+
+```{r allocation_weights}
+# Configure power decay kernel with beta = 2.0
+decay_kernel <- kernel_options(
+  kernel = "power",
+  params = list(power = 2.0)
 )
 
-private_kernel <- kernel_options(
-  kernel = "exponential",
-  params = list(decay_rate = 0.05)
-)
-
-# Compute normalized allocation weights matrix
+# Calculate normalized allocation weights matrix W
 alloc_weights <- calc_allocation_weights(
   dist_matrix    = dist_mat,
   sink_pop       = demographics,
-  kernel_options = list(
-    public  = public_kernel,
-    private = private_kernel
-  ),
+  kernel_options = decay_kernel,
   normalize      = TRUE
 )
+
+alloc_weights
 ```
+
+Each row in the resulting weights matrix represents a school, and the columns represent Census Block Groups. Because `normalize = TRUE`, each row sums to 1.0, ensuring total student enrollment is conserved when allocated across CBGs.
 
 ---
 
-## 3. Allocation & Re-projection
+## 5. Distributing Coverage from Schools to Census Block Groups
 
-Once the allocation weight matrix is constructed, coverage data across multiple years or posterior draws from Bayesian models (e.g., `imuGAP`) can be rapidly projected onto target spatial units:
+With the allocation weights constructed, we project coverage estimates from `imuGAP`.
 
-```r
-# Load annual coverage data
-school_vax_2023 <- read.csv("school_vax_2023.csv")
-school_vax_2024 <- read.csv("school_vax_2024.csv")
+### Scenario A: Observed School Coverage (Counts)
 
-# Project 2023 estimates onto CBGs
-cbg_coverage_2023 <- allocate(
-  coverage_data = school_vax_2023,
-  weights       = alloc_weights,
-  age_alignment = "uniform"
+First, we consume kindergarten reported observations from `imuGAP::observations_sim` (cohort 28):
+
+```{r allocate_counts}
+# Filter observations for the latest kindergarten cohort (age 5, dose 2)
+obs_latest <- imuGAP::observations_sim[
+  cohort == 28 & dose == 2 & age_min == 5
+]
+
+school_obs <- obs_latest[
+  loc_id %in% nc_schools$id,
+  .(id = loc_id, vaccinated = positive, total = sample_n)
+]
+
+head(school_obs, n = 3)
+
+# Project observed counts and calculate allocated CBG coverage
+cbg_counts <- allocate(
+  coverage_data = school_obs,
+  weights       = alloc_weights
 )
 
-# Project 2024 estimates onto CBGs using the cached weights matrix
-cbg_coverage_2024 <- allocate(
-  coverage_data = school_vax_2024,
-  weights       = alloc_weights,
-  age_alignment = "uniform"
-)
+head(cbg_counts)
 ```
 
----
+### Scenario B: Bayesian Latent Coverage Predictions (`imuGAP::predict_sim`)
 
-## 4. Working with Posterior Uncertainty (e.g., `imuGAP`)
+Next, we project modeled latent immune coverage estimates from `imuGAP::predict_sim`. We extract the model's posterior mean coverage for kindergarteners at each school:
 
-When coverage data contains posterior samples/draws, `allocate()` propagates the entire distribution through the allocation matrix:
+```{r allocate_model_summary}
+pred_sum <- summary(imuGAP::predict_sim)
 
-```r
-# Project posterior draws
+school_modeled <- pred_sum[
+  loc_id %in% nc_schools$id & age == 5 & dose == 2,
+  .(id = loc_id, coverage = mean)
+]
+
+head(school_modeled, n = 3)
+
+# Re-project modeled mean coverage onto Census Block Groups
+cbg_modeled <- allocate(
+  coverage_data = school_modeled,
+  weights       = alloc_weights
+)
+
+head(cbg_modeled)
+```
+
+### Scenario C: Propagating Full Posterior Uncertainty
+
+`allocate()` natively supports full posterior distribution propagation. If the input contains a posterior draws column (`draws_col`), the entire distribution is projected through the allocation weights matrix:
+
+```{r allocate_posterior_draws}
+# Extract all MCMC draws from imuGAP prediction output
+draws_dt <- as.data.table(as.data.frame(imuGAP::predict_sim))[
+  loc_id %in% nc_schools$id & age == 5 & dose == 2
+]
+draws_dt[, draw := paste0(chain, "_", iteration)]
+
+school_draws <- draws_dt[, .(id = loc_id, draw, coverage)]
+
+# Vectorized projection across all posterior draws
 cbg_draws <- allocate(
-  coverage_data = imugap_predict_draws,
+  coverage_data = school_draws,
   weights       = alloc_weights,
   draws_col     = "draw"
 )
+
+# Summarize posterior median and 95% credible intervals per CBG
+cbg_post_summary <- cbg_draws[, .(
+  mean_cov = mean(value),
+  q2_5     = quantile(value, 0.025),
+  q50      = median(value),
+  q97_5    = quantile(value, 0.975)
+), by = id]
+
+head(cbg_post_summary)
 ```
+
+---
+
+## 6. Geospatial Mapping & Visual Summaries
+
+We now merge the re-projected coverage estimates back onto the target Census Block Group polygons to visualize the continuous spatial distribution of vaccine coverage:
+
+```{r map_coverage, fig.cap = "Re-projected Kindergarten MMR2 Vaccine Coverage across Census Block Groups, with source school locations overlaid."}
+# Join allocated coverage to planar CBG polygons
+cbg_map <- merge(cbgs_planar, cbg_modeled, by = "id")
+
+# Plot re-projected coverage choropleth
+plot(
+  cbg_map["coverage"],
+  main   = "Projected Vaccine Coverage by Census Block Group",
+  key.pos = 4,
+  breaks = seq(0.80, 0.96, by = 0.02)
+)
+
+# Overlay school facility locations
+plot(
+  sf::st_geometry(spatial_data$source),
+  col = "black",
+  pch = 21,
+  bg  = "white",
+  cex = 1.1,
+  add = TRUE
+)
+```
+
+### Coverage Distribution Summary
+
+We can also inspect the empirical distribution of coverage across Census Block Groups compared to the originating school facilities:
+
+```{r distribution_comparison}
+# Summary statistics
+summary(school_modeled$coverage)
+summary(cbg_modeled$coverage)
+```
+
+The resulting map reveals spatial variation in immunity across residential areas that were previously obscured when viewing discrete school facilities in isolation.
+
+---
+
+## Summary
+
+In this workflow, we demonstrated how `imuMAP`:
+
+1. **Ingests and canonicalizes** spatial layers (`nc_schools`, `nc_cbgs`) and demographic distributions (`nc_demographics`).
+2. **Constructs reusable distance and eligibility matrices** accounting for school district boundaries and catchment areas.
+3. **Applies distance decay kernels** with population weighting to construct normalized spatial allocation matrices.
+4. **Distributes `imuGAP` coverage estimates and posterior uncertainty** from point-level reporting facilities to continuous Census Block Group geographies.

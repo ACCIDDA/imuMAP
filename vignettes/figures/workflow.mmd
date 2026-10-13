@@ -1,0 +1,38 @@
+graph TD
+    subgraph Inputs["1. Model & Geospatial Inputs"]
+        GAP["imuGAP Estimates<br/>(predict_sim / observations_sim)"]
+        SCH["School Points<br/>(nc_schools)"]
+        CBG["Census Block Groups<br/>(nc_cbgs)"]
+        DEM["CBG Demographics<br/>(nc_demographics)"]
+    end
+
+    subgraph Preparation["2. Canonicalization"]
+        CAN_SP["canonicalize_spatial()<br/>Harmonize CRS & Validate Schemas"]
+        CAN_DEM["canonicalize_demographics()<br/>Validate Populations"]
+        SCH --> CAN_SP
+        CBG --> CAN_SP
+        DEM --> CAN_DEM
+    end
+
+    subgraph Matrices["3. Intermediate Structures"]
+        ELIG["eligibility_rules()<br/>Public (County) / Private (Radius)"]
+        DIST["calc_distance_matrix()<br/>Pairwise Distance Matrix"]
+        KERN["kernel_options()<br/>Distance Decay Functions"]
+        WTS["calc_allocation_weights()<br/>Normalized Weights Matrix"]
+
+        CAN_SP --> DIST
+        ELIG --> DIST
+        DIST --> WTS
+        CAN_DEM --> WTS
+        KERN --> WTS
+    end
+
+    subgraph Projection["4. Allocation & Mapping"]
+        ALLOC["allocate()<br/>Project Coverage & Posterior Draws"]
+        MAP["Geospatial Choropleth<br/>CBG Coverage Surface"]
+
+        GAP --> ALLOC
+        WTS --> ALLOC
+        ALLOC --> MAP
+        CBG --> MAP
+    end
