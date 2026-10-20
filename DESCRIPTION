@@ -29,7 +29,7 @@ Imports:
 Suggests: 
     covr,
     devtools,
-    imuGAP,
+    imuGAP (>= 0.2.0),
     knitr,
     lintr,
     pkgdown,
@@ -43,8 +43,6 @@ Suggests:
 VignetteBuilder: 
     knitr
 Config/testthat/edition: 3
-Remotes: 
-    ACCIDDA/imuGAP
 URL: https://accidda.github.io/imuMAP/, https://github.com/ACCIDDA/imuMAP
 BugReports: https://github.com/ACCIDDA/imuMAP/issues
 Config/roxyglobals/filename: globals.R
