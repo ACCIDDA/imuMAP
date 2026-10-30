@@ -25,7 +25,8 @@ Depends:
 Imports: 
     data.table,
     Matrix,
-    sf
+    sf,
+    transport
 Suggests: 
     covr,
     devtools,

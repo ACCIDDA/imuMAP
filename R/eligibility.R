@@ -7,20 +7,20 @@ ERR_MISSING_MATCH_COL <- "expected match column '{col}' in '{name}'"
 #' @title Define Spatial Eligibility Rule
 #'
 #' @description Constructs an eligibility rule partitioning how sources map
-#'   to sinks based on spatial or metadata attributes (e.g. school type,
+#'   to targets based on spatial or metadata attributes (e.g. school type,
 #'   district containment, or subset-specific distance cutoffs).
 #'
 #' @param source_filter Named list, character expression, logical vector, or
 #'   function `f(source)` selecting the source subset this rule applies to.
 #'   For example: `list(school_type = "public")`. Defaults to `NULL` (all sources).
 #' @param match_cols Character vector of metadata column names that must match
-#'   identically between source and sink units (e.g. `"district_id"`).
+#'   identically between source and target units (e.g. `"district_id"`).
 #' @param max_distance Numeric. Maximum distance cutoff specific to this rule.
 #'   Defaults to `Inf`.
-#' @param sink_filter Optional named list, logical vector, or function `f(sink)`
-#'   restricting eligible sink units.
-#' @param predicate Optional function `f(source_sub, sink_sub)` returning a
-#'   logical matrix for matching source and sink subsets.
+#' @param target_filter Optional named list, logical vector, or function `f(target)`
+#'   restricting eligible target units.
+#' @param predicate Optional function `f(source_sub, target_sub)` returning a
+#'   logical matrix for matching source and target subsets.
 #'
 #' @return An S3 object of class `imumap_eligibility_rule`.
 #'
@@ -42,7 +42,7 @@ eligibility_rule <- function(
   source_filter = NULL,
   match_cols = NULL,
   max_distance = Inf,
-  sink_filter = NULL,
+  target_filter = NULL,
   predicate = NULL
 ) {
   structure(
@@ -50,7 +50,7 @@ eligibility_rule <- function(
       source_filter = source_filter,
       match_cols = match_cols,
       max_distance = max_distance,
-      sink_filter = sink_filter,
+      target_filter = target_filter,
       predicate = predicate
     ),
     class = "imumap_eligibility_rule"
@@ -156,12 +156,12 @@ eval_filter <- function(data, filter) {
 #'
 #' @param dist_mat Numeric matrix of distances.
 #' @param source Canonicalized `sf` object of sources.
-#' @param sink Canonicalized `sf` object of sinks.
+#' @param target Canonicalized `sf` object of targets.
 #' @param eligibility Eligibility rule, rules list, matrix, or function.
 #' @return Modified numeric matrix of distances with ineligible entries set to `Inf`.
 #' @keywords internal
 #' @noRd
-apply_eligibility <- function(dist_mat, source, sink, eligibility) {
+apply_eligibility <- function(dist_mat, source, target, eligibility) {
   if (is.null(eligibility)) {
     return(dist_mat)
   }
@@ -172,7 +172,7 @@ apply_eligibility <- function(dist_mat, source, sink, eligibility) {
   }
 
   if (is.function(eligibility)) {
-    elig_mat <- eligibility(source, sink)
+    elig_mat <- eligibility(source, target)
     dist_mat[!elig_mat] <- Inf
     return(dist_mat)
   }
@@ -194,16 +194,16 @@ apply_eligibility <- function(dist_mat, source, sink, eligibility) {
     }
 
     src_mask <- eval_filter(source, rule$source_filter)
-    snk_mask <- eval_filter(sink, rule$sink_filter)
+    tgt_mask <- eval_filter(target, rule$target_filter)
 
     src_idx <- which(src_mask)
     if (length(src_idx) == 0) {
       next
     }
 
-    # Restrict sinks by sink_filter
-    if (!all(snk_mask)) {
-      dist_mat[src_idx, !snk_mask] <- Inf
+    # Restrict targets by target_filter
+    if (!all(tgt_mask)) {
+      dist_mat[src_idx, !tgt_mask] <- Inf
     }
 
     # Match columns constraint (e.g. district_id)
@@ -216,17 +216,17 @@ apply_eligibility <- function(dist_mat, source, sink, eligibility) {
           name = "source"
         )
         stop_fmt_if(
-          !col %in% names(sink),
+          !col %in% names(target),
           ERR_MISSING_MATCH_COL,
           col = col,
-          name = "sink"
+          name = "target"
         )
 
         src_vals <- source[[col]][src_idx]
-        snk_vals <- sink[[col]]
+        tgt_vals <- target[[col]]
 
         # Outer comparison matrix for matching attribute values
-        match_eq <- outer(src_vals, snk_vals, `==`)
+        match_eq <- outer(src_vals, tgt_vals, `==`)
         match_eq[is.na(match_eq)] <- FALSE
 
         dist_mat[src_idx, ][!match_eq] <- Inf
@@ -242,7 +242,7 @@ apply_eligibility <- function(dist_mat, source, sink, eligibility) {
 
     # Custom predicate
     if (is.function(rule$predicate)) {
-      pred_mat <- rule$predicate(source[src_idx, ], sink)
+      pred_mat <- rule$predicate(source[src_idx, ], target)
       dist_mat[src_idx, ][!pred_mat] <- Inf
     }
   }

@@ -6,15 +6,15 @@ test_that("allocate calculates target counts and coverage rates accurately", {
   )
   src <- sf::st_sf(id = c("s1", "s2"), geometry = pts_src)
 
-  pts_snk <- sf::st_sfc(
+  pts_tgt <- sf::st_sfc(
     sf::st_point(c(0, 0)),
     sf::st_point(c(0, 10)),
     crs = 3857
   )
-  snk <- sf::st_sf(id = c("c1", "c2"), geometry = pts_snk)
+  tgt <- sf::st_sf(id = c("c1", "c2"), geometry = pts_tgt)
 
   # Identity distance/weights
-  dmat <- calc_distance_matrix(src, snk, max_distance = 1)
+  dmat <- calc_distance_matrix(src, tgt, max_distance = 1)
   w <- calc_allocation_weights(dmat, kernel_options = kernel_options("uniform"))
 
   cov_data <- data.frame(
@@ -35,14 +35,14 @@ test_that("allocate handles posterior draws correctly", {
   pts_src <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3857)
   src <- sf::st_sf(id = "s1", geometry = pts_src)
 
-  pts_snk <- sf::st_sfc(
+  pts_tgt <- sf::st_sfc(
     sf::st_point(c(0, 1)),
     sf::st_point(c(0, 1)),
     crs = 3857
   )
-  snk <- sf::st_sf(id = c("c1", "c2"), geometry = pts_snk)
+  tgt <- sf::st_sf(id = c("c1", "c2"), geometry = pts_tgt)
 
-  dmat <- calc_distance_matrix(src, snk)
+  dmat <- calc_distance_matrix(src, tgt)
   w <- calc_allocation_weights(dmat, kernel_options = kernel_options("uniform"))
 
   draws_df <- data.frame(
@@ -52,7 +52,7 @@ test_that("allocate handles posterior draws correctly", {
   )
 
   res_draws <- allocate(draws_df, w, draws_col = "draw")
-  expect_equal(nrow(res_draws), 6) # 2 sinks * 3 draws
+  expect_equal(nrow(res_draws), 6) # 2 targets * 3 draws
   expect_true(all(c("id", "draw", "value") %in% names(res_draws)))
   expect_equal(res_draws[draw == 1]$value, c(0.4, 0.4))
 })

@@ -3,9 +3,11 @@
 #' @description Configures the mathematical decay function applied to spatial
 #'   distances during allocation weight calculations.
 #'
-#' @param kernel Character or function. Choices include `"gravity"`,
-#'   `"exponential"`, `"power"`, `"uniform"`, `"gaussian"`, or a custom function
-#'   `f(d, params)` taking distance and parameter list.
+#' @param kernel Character or function. Supported character choices include
+#'   `"gravity"`, `"exponential"`, `"power"`, `"uniform"`, `"gaussian"`, and
+#'   `"cauchy"`. Alternatively, accepts any distribution density or decay
+#'   function `f(d, ...)` (e.g. `stats::dnorm`, `stats::dexp`, or function
+#'   factories from packages such as `accessibility`).
 #' @param params Named list of parameters for the decay kernel.
 #'
 #' @return An S3 object of class `imumap_kernel_options`.
@@ -14,16 +16,26 @@
 #' # Gravity decay with power beta = 2
 #' opt <- kernel_options("gravity", list(beta = 2, min_dist = 10))
 #'
-#' # Exponential decay with rate 0.05
+#' # Exponential decay using stats::dexp rate
 #' exp_opt <- kernel_options("exponential", list(decay_rate = 0.05))
+#'
+#' # Gaussian decay using stats::dnorm
+#' gaus_opt <- kernel_options("gaussian", list(sigma = 500))
 #'
 #' @export
 kernel_options <- function(
-  kernel = c("gravity", "exponential", "power", "uniform", "gaussian"),
+  kernel = c("gravity", "exponential", "power", "uniform", "gaussian", "cauchy"),
   params = list()
 ) {
   if (is.character(kernel)) {
-    valid_kernels <- c("gravity", "exponential", "power", "uniform", "gaussian")
+    valid_kernels <- c(
+      "gravity",
+      "exponential",
+      "power",
+      "uniform",
+      "gaussian",
+      "cauchy"
+    )
     kernel <- match.arg(kernel, valid_kernels)
   } else {
     stop_fmt_if(
@@ -45,6 +57,8 @@ kernel_options <- function(
     default_params <- list()
   } else if (identical(kernel, "gaussian")) {
     default_params <- list(sigma = 1000.0)
+  } else if (identical(kernel, "cauchy")) {
+    default_params <- list(scale = 1000.0)
   }
 
   for (nm in names(default_params)) {
@@ -90,7 +104,18 @@ apply_kernel <- function(d, options) {
   d_valid <- d[valid_mask]
 
   if (is.function(kernel)) {
-    w[valid_mask] <- kernel(d_valid, params)
+    fn_args <- names(formals(kernel))
+    if ("params" %in% fn_args) {
+      w[valid_mask] <- kernel(d_valid, params)
+    } else if (length(params) > 0 && any(names(params) %in% fn_args)) {
+      call_args <- c(list(d_valid), params[intersect(names(params), fn_args)])
+      w[valid_mask] <- do.call(kernel, call_args)
+    } else {
+      w[valid_mask] <- tryCatch(
+        kernel(d_valid),
+        error = function(e) kernel(d_valid, params)
+      )
+    }
   } else if (kernel == "gravity") {
     min_d <- params$min_dist %||% 1.0
     beta <- params$beta %||% 2.0
@@ -98,7 +123,7 @@ apply_kernel <- function(d, options) {
     w[valid_mask] <- 1.0 / (d_eff^beta)
   } else if (kernel == "exponential") {
     lambda <- params$decay_rate %||% 0.05
-    w[valid_mask] <- exp(-lambda * d_valid)
+    w[valid_mask] <- stats::dexp(d_valid, rate = lambda)
   } else if (kernel == "power") {
     min_d <- params$min_dist %||% 1.0
     pow <- params$power %||% 1.0
@@ -108,7 +133,10 @@ apply_kernel <- function(d, options) {
     w[valid_mask] <- 1.0
   } else if (kernel == "gaussian") {
     sigma <- params$sigma %||% 1000.0
-    w[valid_mask] <- exp(-0.5 * (d_valid / sigma)^2)
+    w[valid_mask] <- stats::dnorm(d_valid, mean = 0, sd = sigma)
+  } else if (kernel == "cauchy") {
+    scale <- params$scale %||% 1000.0
+    w[valid_mask] <- stats::dcauchy(d_valid, location = 0, scale = scale)
   }
 
   w

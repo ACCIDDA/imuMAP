@@ -15,16 +15,14 @@ graph TD
     end
 
     subgraph Matrices["3. Intermediate Structures"]
-        ELIG["eligibility_rules()<br/>Public (County) / Private (Radius)"]
         DIST["calc_distance_matrix()<br/>Pairwise Distance Matrix"]
-        KERN["kernel_options()<br/>Distance Decay Functions"]
-        WTS["calc_allocation_weights()<br/>Normalized Weights Matrix"]
+        TIER["allocation_tier()<br/>Public (Bounded) & Private (Residual)"]
+        WTS["calc_iterative_weights()<br/>Multi-Tier Residual Allocation"]
 
         CAN_SP --> DIST
-        ELIG --> DIST
         DIST --> WTS
         CAN_DEM --> WTS
-        KERN --> WTS
+        TIER --> WTS
     end
 
     subgraph Projection["4. Allocation & Mapping"]

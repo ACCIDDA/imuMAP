@@ -26,7 +26,7 @@ Usage:
 imugap input/ output/
 ```
 
-That's it. No post-processing, no aggregation, no geospatial functions.
+The current package focuses on the core workflow for model execution and does not yet include post-processing, aggregation, or geospatial functions.
 
 ## What might land here later
 

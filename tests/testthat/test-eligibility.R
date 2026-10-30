@@ -12,15 +12,15 @@ test_that("eligibility_rule filters by source metadata and match_cols", {
     geometry = pts_src
   )
 
-  pts_snk <- sf::st_sfc(
+  pts_tgt <- sf::st_sfc(
     sf::st_point(c(0, 0)),
     sf::st_point(c(0, 10)),
     crs = 3857
   )
-  snk <- sf::st_sf(
+  tgt <- sf::st_sf(
     id = c("c_d1", "c_d2"),
     district_id = c("d1", "d2"),
-    geometry = pts_snk
+    geometry = pts_tgt
   )
 
   # Rule: Public schools only to matching district; Private schools everywhere within 50
@@ -35,7 +35,7 @@ test_that("eligibility_rule filters by source metadata and match_cols", {
 
   dmat <- calc_distance_matrix(
     src,
-    snk,
+    tgt,
     eligibility = eligibility_rules(rule_pub, rule_priv)
   )
 
@@ -52,24 +52,24 @@ test_that("eligibility_rule filters by source metadata and match_cols", {
   expect_equal(dmat$matrix["priv_all", "c_d2"], 10)
 })
 
-test_that("eligibility_rule handles custom predicates and sink_filter", {
+test_that("eligibility_rule handles custom predicates and target_filter", {
   pts_src <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3857)
   src <- sf::st_sf(id = "s1", grade = "elem", geometry = pts_src)
 
-  pts_snk <- sf::st_sfc(
+  pts_tgt <- sf::st_sfc(
     sf::st_point(c(0, 1)),
     sf::st_point(c(0, 2)),
     crs = 3857
   )
-  snk <- sf::st_sf(
+  tgt <- sf::st_sf(
     id = c("c1", "c2"),
     urban = c(TRUE, FALSE),
-    geometry = pts_snk
+    geometry = pts_tgt
   )
 
-  # Rule: only map to urban sinks
-  rule_urban <- eligibility_rule(sink_filter = list(urban = TRUE))
-  dmat <- calc_distance_matrix(src, snk, eligibility = rule_urban)
+  # Rule: only map to urban targets
+  rule_urban <- eligibility_rule(target_filter = list(urban = TRUE))
+  dmat <- calc_distance_matrix(src, tgt, eligibility = rule_urban)
 
   expect_equal(dmat$matrix["s1", "c1"], 1)
   expect_true(is.infinite(dmat$matrix["s1", "c2"]))
@@ -78,11 +78,11 @@ test_that("eligibility_rule handles custom predicates and sink_filter", {
 test_that("eligibility_rule errors when match_cols not found in metadata", {
   pts <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3857)
   src <- sf::st_sf(id = "s1", geometry = pts)
-  snk <- sf::st_sf(id = "c1", geometry = pts)
+  tgt <- sf::st_sf(id = "c1", geometry = pts)
 
   rule <- eligibility_rule(match_cols = "nonexistent_col")
   expect_error(
-    calc_distance_matrix(src, snk, eligibility = rule),
+    calc_distance_matrix(src, tgt, eligibility = rule),
     "expected match column 'nonexistent_col'"
   )
 })

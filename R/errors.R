@@ -9,10 +9,16 @@ ERR_INVALID_DIST_MATRIX <- "argument `{arg}` must be an 'imumap_dist_matrix' obj
 ERR_INVALID_KERNEL <- "unknown decay kernel '{kernel}'; must be one of: {valid}"
 ERR_INVALID_KERNEL_OPTIONS <- "argument `{arg}` must be an 'imumap_kernel_options' object"
 ERR_INVALID_WEIGHTS <- "argument `{arg}` must be an 'imumap_weights' object"
-ERR_NON_NUMERIC_POP <- "sink demographic population must be numeric and non-negative"
-ERR_MISMATCH_SINK_IDS <- "sink demographic IDs do not match distance matrix sink IDs"
+ERR_NON_NUMERIC_POP <- "target demographic population must be numeric and non-negative"
+ERR_MISMATCH_TARGET_IDS <- "target demographic IDs do not match distance matrix target IDs"
 ERR_INVALID_ALIGNMENT <- "unknown age alignment method '{method}'"
 ERR_MISSING_COVERAGE_COL <- "expected column '{col}' in coverage data"
+ERR_TIER_MISSING_NAME <- "allocation tier must have a non-empty 'name'"
+ERR_INVALID_TIER <- "argument `{arg}` must be an 'imumap_allocation_tier' object"
+ERR_DUPLICATE_TIER_NAME <- "duplicate tier names found: {names}"
+ERR_UNASSIGNED_SOURCES <- "{count} source locations were not assigned to any tier"
+ERR_OVERLAPPING_TIERS <- "source '{id}' was assigned to multiple tiers"
+ERR_SOLVER_UNAVAILABLE <- "package '{pkg}' is required for method '{method}'"
 
 #' @title Format String with Named Variables
 #'

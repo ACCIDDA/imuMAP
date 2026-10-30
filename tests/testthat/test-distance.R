@@ -6,14 +6,14 @@ test_that("calc_distance_matrix calculates pairwise distances correctly", {
   )
   src <- sf::st_sf(id = c("s1", "s2"), geometry = pts_src)
 
-  pts_snk <- sf::st_sfc(
+  pts_tgt <- sf::st_sfc(
     sf::st_point(c(0, 0)),
     sf::st_point(c(0, 5)),
     crs = 3857
   )
-  snk <- sf::st_sf(id = c("c1", "c2"), geometry = pts_snk)
+  tgt <- sf::st_sf(id = c("c1", "c2"), geometry = pts_tgt)
 
-  dmat <- calc_distance_matrix(src, snk)
+  dmat <- calc_distance_matrix(src, tgt)
 
   expect_s3_class(dmat, "imumap_dist_matrix")
   expect_equal(dim(dmat), c(2, 2))
@@ -31,10 +31,10 @@ test_that("calc_distance_matrix applies max_distance cutoff", {
   )
   src <- sf::st_sf(id = c("s1", "s2"), geometry = pts_src)
 
-  pts_snk <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3857)
-  snk <- sf::st_sf(id = "c1", geometry = pts_snk)
+  pts_tgt <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3857)
+  tgt <- sf::st_sf(id = "c1", geometry = pts_tgt)
 
-  dmat <- calc_distance_matrix(src, snk, max_distance = 50)
+  dmat <- calc_distance_matrix(src, tgt, max_distance = 50)
   expect_equal(dmat$matrix["s1", "c1"], 0)
   expect_true(is.infinite(dmat$matrix["s2", "c1"]))
 })
@@ -47,12 +47,12 @@ test_that("calc_distance_matrix applies eligibility filtering operator", {
   )
   src <- sf::st_sf(id = c("s1", "s2"), geometry = pts_src)
 
-  pts_snk <- sf::st_sfc(
+  pts_tgt <- sf::st_sfc(
     sf::st_point(c(0, 0)),
     sf::st_point(c(0, 10)),
     crs = 3857
   )
-  snk <- sf::st_sf(id = c("c1", "c2"), geometry = pts_snk)
+  tgt <- sf::st_sf(id = c("c1", "c2"), geometry = pts_tgt)
 
   # Custom eligibility: s1 only to c1, s2 only to c2
   elig_func <- function(s, k) {
@@ -61,7 +61,7 @@ test_that("calc_distance_matrix applies eligibility filtering operator", {
     })
   }
 
-  dmat <- calc_distance_matrix(src, snk, eligibility = elig_func)
+  dmat <- calc_distance_matrix(src, tgt, eligibility = elig_func)
   expect_equal(dmat$matrix["s1", "c1"], 0)
   expect_true(is.infinite(dmat$matrix["s1", "c2"]))
   expect_true(is.infinite(dmat$matrix["s2", "c1"]))
@@ -71,10 +71,11 @@ test_that("calc_distance_matrix applies eligibility filtering operator", {
 test_that("print.imumap_dist_matrix outputs informative summary", {
   pts <- sf::st_sfc(sf::st_point(c(0, 0)), crs = 3857)
   src <- sf::st_sf(id = "s1", geometry = pts)
-  snk <- sf::st_sf(id = "c1", geometry = pts)
-  dmat <- calc_distance_matrix(src, snk)
+  tgt <- sf::st_sf(id = "c1", geometry = pts)
+  dmat <- calc_distance_matrix(src, tgt)
 
   out <- capture.output(print(dmat))
   expect_true(any(grepl("<imumap_dist_matrix>", out)))
   expect_true(any(grepl("Sources: 1", out)))
+  expect_true(any(grepl("Targets: 1", out)))
 })

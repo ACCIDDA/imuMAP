@@ -1,6 +1,6 @@
 # AGENTS.md — Developer and AI Agent Guidelines for imuMAP
 
-This document outlines architectural principles, coding conventions, testing standards, and development workflows for developers and AI coding agents working on `imuMAP`.
+This guide explains the architecture, coding conventions, testing standards, and development workflow for contributors and AI coding agents working on `imuMAP`.
 
 ---
 
@@ -65,6 +65,14 @@ just check-cran    # Check package with --as-cran
 * Document `@param` concisely with type and default where applicable.
 * Document `@return` explicitly describing return type and structure.
 * For exported functions, include runnable and fast `@examples`.
+
+### Documentation and Vignette Voice
+* Write user-facing prose in active voice with a clear actor.
+* Prefer direct phrasing such as "We designed `imuMAP` to project coverage estimates" or "This workflow allocates school-level data to Census Block Groups" rather than passive phrasing such as "`imuMAP` is designed to be used for..." or "coverage estimates are often observed at...".
+* Where possible, avoid pronouns in explanatory prose. Use a noun instead: for example, "the tool provides" instead of "it provides". However, "we" for authorial voice and "you" for the reader are preferred.
+* Keep the subject explicit and the action concrete. Explain the problem, what the package does, and why it matters in plain English before you expand into implementation details.
+* Use a conversational but formal tone. Favor strong verbs and concrete nouns over heavy jargon, abstract nominalizations, and repeated `to be` constructions.
+* Define domain terms once and use them consistently across roxygen comments, vignettes, and package docs.
 
 ### Unit Testing (`testthat`)
 * All user-facing functions must have comprehensive test coverage in `tests/testthat/`.

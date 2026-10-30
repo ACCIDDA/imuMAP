@@ -5,9 +5,9 @@
 #'   zero-population handling.
 #'
 #' @param max_distance Numeric. Global cutoff distance. Default is `Inf`.
-#' @param zero_pop_handling Character. Strategy for handling sink units with 0
+#' @param zero_pop_handling Character. Strategy for handling target units with 0
 #'   population: `"distribute_evenly"`, `"ignore"`, or `"error"`.
-#' @param tie_breaking Character. Strategy for equidistant source-sink ties.
+#' @param tie_breaking Character. Strategy for equidistant source-target ties.
 #' @param sparse Logical. If `TRUE`, intermediate matrices utilize sparse
 #'   `dgCMatrix` formats. Default `TRUE`.
 #'

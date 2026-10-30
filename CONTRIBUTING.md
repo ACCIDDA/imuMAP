@@ -1,6 +1,6 @@
 # Contributing to imuMAP
 
-Thank you for your interest in contributing to `imuMAP`! This document provides guidelines and instructions for contributing to the package.
+Thank you for your interest in contributing to `imuMAP`! This guide explains how to contribute to the package and how to keep the project documentation clear, consistent, and approachable.
 
 ---
 
@@ -38,6 +38,14 @@ We adhere to modern R package conventions and use automated tooling for code for
   ```sh
   just docs
   ```
+
+### 4. Voice and Clarity in Documentation and Vignettes
+* Write user-facing prose in active voice with an explicit actor.
+* Start with the person, package, or function doing the work: "We designed `imuMAP` to re-project coverage estimates" or "This workflow allocates school-level coverage to Census Block Groups."
+* Where possible, avoid pronouns in explanatory prose. Use a noun instead: for example, "the tool provides" instead of "it provides". However, "we" for authorial voice and "you" for the reader are preferred.
+* Prefer concrete, direct verbs over passive phrasing or abstract placeholders. Avoid heavy nominalizations, redundant `to be` constructions, and jargon that readers need to decode before they reach the point.
+* Keep the narrative conversational but formal. Explain the problem, then show how the code solves it in plain English.
+* Use consistent terminology across documentation and vignettes so readers can follow the same concept from the intro to the examples.
 
 ---
 

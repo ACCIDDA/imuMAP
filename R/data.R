@@ -25,7 +25,7 @@
 #'
 #' @description Spatial polygon geometries representing 113 Census Block Groups (CBGs)
 #'   across three adjacent counties (Scruggs, Simone, Watson) in western North Carolina.
-#'   Used as target/sink spatial units for allocating coverage from schools.
+#'   Used as target spatial units for allocating coverage from schools.
 #'
 #' @format An `sf` data frame with 113 features and 4 fields:
 #' \describe{

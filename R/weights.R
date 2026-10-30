@@ -1,12 +1,12 @@
 #' @title Calculate Spatial Allocation Weights Matrix
 #'
-#' @description Combines pairwise spatial distances, sink population counts,
+#' @description Combines pairwise spatial distances, target population counts,
 #'   and distance decay kernels into an allocation weights matrix mapping sources
-#'   to sinks.
+#'   to targets.
 #'
 #' @param dist_matrix An `imumap_dist_matrix` object created by `calc_distance_matrix()`.
-#' @param sink_pop Optional `data.frame` or `imumap_demographics` object containing
-#'   sink demographic population counts (must include `id` and `population`).
+#' @param target_pop Optional `data.frame` or `imumap_demographics` object containing
+#'   target demographic population counts (must include `id` and `population`).
 #' @param kernel_options An `imumap_kernel_options` object, or a list of
 #'   `imumap_kernel_options` objects. Defaults to `kernel_options("gravity")`.
 #' @param normalize Logical. If `TRUE`, normalizes weights so each source row
@@ -19,16 +19,16 @@
 #' @examples
 #' pts <- sf::st_sfc(sf::st_point(c(0, 0)), sf::st_point(c(1, 1)), crs = 3857)
 #' src <- sf::st_sf(id = c("s1", "s2"), geometry = pts)
-#' snk_pts <- sf::st_sfc(sf::st_point(c(0, 0.5)), sf::st_point(c(1, 1.5)), crs = 3857)
-#' snk <- sf::st_sf(id = c("c1", "c2"), geometry = snk_pts)
-#' dmat <- calc_distance_matrix(src, snk)
+#' tgt_pts <- sf::st_sfc(sf::st_point(c(0, 0.5)), sf::st_point(c(1, 1.5)), crs = 3857)
+#' tgt <- sf::st_sf(id = c("c1", "c2"), geometry = tgt_pts)
+#' dmat <- calc_distance_matrix(src, tgt)
 #' w <- calc_allocation_weights(dmat)
 #'
 #' @importFrom stats setNames
 #' @export
 calc_allocation_weights <- function(
   dist_matrix,
-  sink_pop = NULL,
+  target_pop = NULL,
   kernel_options = imuMAP::kernel_options("gravity"),
   normalize = TRUE,
   sparse = TRUE
@@ -41,7 +41,7 @@ calc_allocation_weights <- function(
 
   d <- dist_matrix$matrix
   src_ids <- dist_matrix$source_ids
-  snk_ids <- dist_matrix$sink_ids
+  tgt_ids <- dist_matrix$target_ids
 
   # Compute decay weights
   if (inherits(kernel_options, "imumap_kernel_options")) {
@@ -64,10 +64,10 @@ calc_allocation_weights <- function(
   }
 
   # Apply population weighting
-  if (!is.null(sink_pop)) {
-    pop_dt <- canonicalize_demographics(sink_pop)
+  if (!is.null(target_pop)) {
+    pop_dt <- canonicalize_demographics(target_pop)
     pop_vec <- setNames(pop_dt$population, pop_dt$id)
-    matched_pops <- pop_vec[snk_ids]
+    matched_pops <- pop_vec[tgt_ids]
     matched_pops[is.na(matched_pops)] <- 0
 
     # Multiply each column j by pop_j
@@ -91,7 +91,7 @@ calc_allocation_weights <- function(
     list(
       weights = w_mat,
       source_ids = src_ids,
-      sink_ids = snk_ids,
+      target_ids = tgt_ids,
       normalized = normalize,
       kernel_options = kernel_options
     ),
@@ -114,8 +114,8 @@ print.imumap_weights <- function(x, ...) {
     "Sources:    ",
     length(x$source_ids),
     "\n",
-    "Sinks:      ",
-    length(x$sink_ids),
+    "Targets:    ",
+    length(x$target_ids),
     "\n",
     "Normalized: ",
     x$normalized,

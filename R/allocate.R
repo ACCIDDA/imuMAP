@@ -1,26 +1,26 @@
 #' @title Re-project / Allocate Coverage Estimates Across Spatial Units
 #'
 #' @description Projects source-level coverage data (or Bayesian posterior
-#'   draws) across target spatial units (sinks) using pre-computed allocation
-#'   weights.
+#'   draws) across target spatial units using pre-computed allocation weights.
 #'
 #' @param coverage_data A `data.frame` or `data.table` containing source-level
 #'   observations with column `id` (matching `weights` source IDs) and numeric
 #'   columns such as `vaccinated`, `total` (or `coverage`).
-#' @param weights An `imumap_weights` object created by `calc_allocation_weights()`.
+#' @param weights An `imumap_weights` object created by `calc_allocation_weights()`
+#'   or `calc_iterative_weights()`.
 #' @param age_alignment Character specifying age harmonization method (`"uniform"`,
 #'   `"proportional"`, or `"exact"`). Default is `"uniform"`.
 #' @param draws_col Optional character naming the column representing posterior draws.
 #' @param options An `imumap_options` object.
 #'
-#' @return A tidy `data.table` with allocated estimates by sink `id`.
+#' @return A tidy `data.table` with allocated estimates by target `id`.
 #'
 #' @examples
 #' pts <- sf::st_sfc(sf::st_point(c(0, 0)), sf::st_point(c(1, 1)), crs = 3857)
 #' src <- sf::st_sf(id = c("s1", "s2"), geometry = pts)
-#' snk_pts <- sf::st_sfc(sf::st_point(c(0, 0.5)), sf::st_point(c(1, 1.5)), crs = 3857)
-#' snk <- sf::st_sf(id = c("c1", "c2"), geometry = snk_pts)
-#' dmat <- calc_distance_matrix(src, snk)
+#' tgt_pts <- sf::st_sfc(sf::st_point(c(0, 0.5)), sf::st_point(c(1, 1.5)), crs = 3857)
+#' tgt <- sf::st_sf(id = c("c1", "c2"), geometry = tgt_pts)
+#' dmat <- calc_distance_matrix(src, tgt)
 #' w <- calc_allocation_weights(dmat)
 #' cov_data <- data.frame(id = c("s1", "s2"), vaccinated = c(80, 95), total = c(100, 100))
 #' res <- allocate(cov_data, w)
@@ -53,7 +53,7 @@ allocate <- function(
 
   cov_dt$id <- as.character(cov_dt$id)
   src_ids <- weights$source_ids
-  snk_ids <- weights$sink_ids
+  tgt_ids <- weights$target_ids
   w_mat <- weights$weights
 
   # Align source IDs
@@ -69,11 +69,11 @@ allocate <- function(
       src_vec <- setNames(sub_dt[[val_col]], sub_dt$id)[src_ids]
       src_vec[is.na(src_vec)] <- 0
 
-      snk_vals <- as.numeric(Matrix::crossprod(w_mat, src_vec))
+      tgt_vals <- as.numeric(Matrix::crossprod(w_mat, src_vec))
       res_list[[idx]] <- data.table::data.table(
-        id = snk_ids,
+        id = tgt_ids,
         draw = dr,
-        value = snk_vals
+        value = tgt_vals
       )
     }
     res_dt <- data.table::rbindlist(res_list)
@@ -90,24 +90,24 @@ allocate <- function(
     vax_vec[is.na(vax_vec)] <- 0
     tot_vec[is.na(tot_vec)] <- 0
 
-    snk_vax <- as.numeric(Matrix::crossprod(w_mat, vax_vec))
-    snk_tot <- as.numeric(Matrix::crossprod(w_mat, tot_vec))
-    snk_cov <- ifelse(snk_tot > 0, snk_vax / snk_tot, NA_real_)
+    tgt_vax <- as.numeric(Matrix::crossprod(w_mat, vax_vec))
+    tgt_tot <- as.numeric(Matrix::crossprod(w_mat, tot_vec))
+    tgt_cov <- ifelse(tgt_tot > 0, tgt_vax / tgt_tot, NA_real_)
 
     res_dt <- data.table::data.table(
-      id = snk_ids,
-      vaccinated = snk_vax,
-      total = snk_tot,
-      coverage = snk_cov
+      id = tgt_ids,
+      vaccinated = tgt_vax,
+      total = tgt_tot,
+      coverage = tgt_cov
     )
   } else if (has_coverage) {
     cov_vec <- setNames(cov_dt$coverage, cov_dt$id)[src_ids]
     cov_vec[is.na(cov_vec)] <- 0
-    snk_cov <- as.numeric(Matrix::crossprod(w_mat, cov_vec))
+    tgt_cov <- as.numeric(Matrix::crossprod(w_mat, cov_vec))
 
     res_dt <- data.table::data.table(
-      id = snk_ids,
-      coverage = snk_cov
+      id = tgt_ids,
+      coverage = tgt_cov
     )
   } else {
     stop_fmt_if(

@@ -48,7 +48,7 @@ diagrams:
                 echo '{"args": ["--no-sandbox", "--disable-setuid-sandbox"]}' > "$PUP_CFG"
                 trap 'rm -f "$PUP_CFG"' EXIT
 
-                for mmd in vignettes/figures/*.mmd; do
+                                for mmd in vignettes/figures/*.mmd; do
                         [ -f "$mmd" ] || continue
                         svg="${mmd%.mmd}.svg"
                         pdf="${mmd%.mmd}.pdf"
